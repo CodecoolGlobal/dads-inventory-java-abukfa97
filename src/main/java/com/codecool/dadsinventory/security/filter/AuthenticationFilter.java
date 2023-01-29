@@ -9,6 +9,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -18,6 +19,7 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -42,16 +44,21 @@ public class AuthenticationFilter extends UsernamePasswordAuthenticationFilter {
         User user = (User) authResult.getPrincipal();
         log.info("{} has {} role",user.getUsername(), user.getAuthorities());
         Algorithm algorithm = Algorithm.HMAC256("D4d5|nv3nt0ry");
+        List<String> authorityList = user.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList());
         String token = JWT.create()
                 .withSubject(user.getUsername())
                 .withIssuer(request.getRequestURL().toString())
-                .withClaim("role",user.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList()))
+                .withClaim("role", authorityList)
                 .sign(algorithm);
         Cookie cookie = new Cookie("token",token);
         cookie.setMaxAge(60*10*10);
         cookie.setSecure(true);
         response.addCookie(cookie);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.sendRedirect("/index");
+        if (authorityList.contains("ROLE_DAD")){
+            response.sendRedirect("/");
+        }else {
+            response.sendRedirect("/home/privacy");
+        }
     }
 }
